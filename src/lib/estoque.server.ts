@@ -124,7 +124,7 @@ export async function fetchAllTabs(spreadsheetId: string): Promise<SheetTab[]> {
       if (!obj["Espécie"] && !obj["Lote"] && !obj["Cliente"]) continue;
       rows.push(obj);
     }
-    tabs.push({ title: titles[idx], headers, rows });
+    tabs.push({ title: titles[idx] ?? `Aba ${idx + 1}`, headers, rows });
   });
   return tabs;
 }
