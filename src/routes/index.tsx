@@ -77,12 +77,25 @@ function fmtDateTime(iso: string) {
 
 function Dashboard() {
   const fetchData = useServerFn(getDashboardData);
-  const { data, isFetching, isError, error, refetch } = useQuery({
+  const queryClient = useQueryClient();
+  const [forcing, setForcing] = useState(false);
+  const { data, isFetching, isError, error } = useQuery({
     queryKey: ["estoque-dashboard"],
     queryFn: () => fetchData({ data: { force: false } }),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 60 * 1000,
   });
+
+  const refetch = async () => {
+    setForcing(true);
+    try {
+      const fresh = await fetchData({ data: { force: true } });
+      queryClient.setQueryData(["estoque-dashboard"], fresh);
+    } finally {
+      setForcing(false);
+    }
+  };
+  const busy = isFetching || forcing;
 
   return (
     <main className="min-h-screen bg-background pb-16">
