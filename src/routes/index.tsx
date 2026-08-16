@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Bar,
@@ -77,12 +78,25 @@ function fmtDateTime(iso: string) {
 
 function Dashboard() {
   const fetchData = useServerFn(getDashboardData);
-  const { data, isFetching, isError, error, refetch } = useQuery({
+  const queryClient = useQueryClient();
+  const [forcing, setForcing] = useState(false);
+  const { data, isFetching, isError, error } = useQuery({
     queryKey: ["estoque-dashboard"],
-    queryFn: () => fetchData(),
+    queryFn: () => fetchData({ data: { force: false } }),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 60 * 1000,
   });
+
+  const refetch = async () => {
+    setForcing(true);
+    try {
+      const fresh = await fetchData({ data: { force: true } });
+      queryClient.setQueryData(["estoque-dashboard"], fresh);
+    } finally {
+      setForcing(false);
+    }
+  };
+  const busy = isFetching || forcing;
 
   return (
     <main className="min-h-screen bg-background pb-16">
@@ -106,11 +120,11 @@ function Dashboard() {
           <div className="flex flex-col items-start gap-2 md:items-end">
             <button
               onClick={() => refetch()}
-              disabled={isFetching}
+              disabled={busy}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-              {isFetching ? "Atualizando..." : "Atualizar dados"}
+              <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
+              {busy ? "Atualizando..." : "Atualizar dados"}
             </button>
             {data ? (
               <div className="text-right text-xs text-muted-foreground">
@@ -141,11 +155,21 @@ function Dashboard() {
         ) : null}
 
         {!data && !isError ? (
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-32 animate-pulse rounded-xl border border-border bg-card" />
-            ))}
-          </div>
+          <>
+            <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className="size-4 animate-spin text-primary" />
+              Lendo todas as abas da planilha no Google Drive… isso pode levar até 30 segundos na
+              primeira carga.
+            </p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-32 animate-pulse rounded-xl border border-border bg-card"
+                />
+              ))}
+            </div>
+          </>
         ) : null}
 
         {data ? (
