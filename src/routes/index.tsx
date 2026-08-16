@@ -141,11 +141,21 @@ function Dashboard() {
         ) : null}
 
         {!data && !isError ? (
-          <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-32 animate-pulse rounded-xl border border-border bg-card" />
-            ))}
-          </div>
+          <>
+            <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
+              <RefreshCw className="size-4 animate-spin text-primary" />
+              Lendo todas as abas da planilha no Google Drive… isso pode levar até 30 segundos na
+              primeira carga.
+            </p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-32 animate-pulse rounded-xl border border-border bg-card"
+                />
+              ))}
+            </div>
+          </>
         ) : null}
 
         {data ? (
