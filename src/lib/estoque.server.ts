@@ -41,13 +41,9 @@ export async function listSpreadsheets(): Promise<DriveFile[]> {
   let queue = [ROOT_FOLDER_ID];
   let depth = 0;
   while (queue.length && depth < 6) {
-    const q =
-      queue.map((id) => `'${id}' in parents`).join(" or ") + " and trashed=false";
+    const q = `(${queue.map((id) => `'${id}' in parents`).join(" or ")}) and trashed=false`;
     const data = await gatewayGet("google_drive", "/drive/v3/files", {
-      q: `(${queue.map((id) => `'${id}' in parents`).join(" or ")}) and trashed=false`.replace(
-        /^\(\) and /,
-        q,
-      ),
+      q,
       fields: "files(id,name,mimeType,modifiedTime)",
       pageSize: "500",
       orderBy: "modifiedTime desc",
