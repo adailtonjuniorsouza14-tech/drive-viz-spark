@@ -79,7 +79,7 @@ function Dashboard() {
   const fetchData = useServerFn(getDashboardData);
   const { data, isFetching, isError, error, refetch } = useQuery({
     queryKey: ["estoque-dashboard"],
-    queryFn: () => fetchData(),
+    queryFn: () => fetchData({ data: { force: false } }),
     refetchInterval: 5 * 60 * 1000,
     staleTime: 60 * 1000,
   });
