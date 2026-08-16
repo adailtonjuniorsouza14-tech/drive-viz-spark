@@ -120,11 +120,11 @@ function Dashboard() {
           <div className="flex flex-col items-start gap-2 md:items-end">
             <button
               onClick={() => refetch()}
-              disabled={isFetching}
+              disabled={busy}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
             >
-              <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} />
-              {isFetching ? "Atualizando..." : "Atualizar dados"}
+              <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
+              {busy ? "Atualizando..." : "Atualizar dados"}
             </button>
             {data ? (
               <div className="text-right text-xs text-muted-foreground">
