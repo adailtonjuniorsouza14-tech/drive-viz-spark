@@ -128,3 +128,41 @@ export async function fetchAllTabs(spreadsheetId: string): Promise<SheetTab[]> {
   });
   return tabs;
 }
+
+/** Metadados de um arquivo específico do Drive. */
+export async function getFile(fileId: string): Promise<DriveFile> {
+  return gatewayGet("google_drive", `/drive/v3/files/${fileId}`, {
+    fields: "id,name,mimeType,modifiedTime",
+  });
+}
+
+/** Busca planilhas Google Sheets por nome em todo o Drive conectado. */
+export async function searchSpreadsheets(query: string): Promise<DriveFile[]> {
+  const safe = query.replace(/'/g, "\\'");
+  const q = [
+    "mimeType='application/vnd.google-apps.spreadsheet'",
+    "trashed=false",
+    safe ? `name contains '${safe}'` : "",
+  ]
+    .filter(Boolean)
+    .join(" and ");
+  const data = await gatewayGet("google_drive", "/drive/v3/files", {
+    q,
+    fields: "files(id,name,mimeType,modifiedTime)",
+    pageSize: "50",
+    orderBy: "modifiedTime desc",
+  });
+  return (data.files ?? []) as DriveFile[];
+}
+
+/** Conta Google atualmente conectada ao aplicativo. */
+export async function getGoogleAccount(): Promise<{ email: string; nome: string; foto: string | null }> {
+  const data = await gatewayGet("google_drive", "/drive/v3/about", {
+    fields: "user(displayName,emailAddress,photoLink)",
+  });
+  return {
+    email: data.user?.emailAddress ?? "",
+    nome: data.user?.displayName ?? "",
+    foto: data.user?.photoLink ?? null,
+  };
+}
