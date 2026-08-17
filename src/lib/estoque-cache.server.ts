@@ -1,39 +1,46 @@
-import type { DashboardData } from "./estoque-types";
-import { listSpreadsheets, fetchAllTabs } from "./estoque.server";
-import { buildDashboard } from "./estoque-aggregate.server";
+import type { DashboardPayload } from "./estoque-types";
+import { listSpreadsheets, fetchAllTabs, getFile } from "./estoque.server";
+import { normalizeRows } from "./estoque-aggregate.server";
 
 const TTL_MS = 5 * 60 * 1000;
 
-let cache: { at: number; data: DashboardData } | null = null;
-let inflight: Promise<DashboardData> | null = null;
+const cache = new Map<string, { at: number; data: DashboardPayload }>();
+const inflight = new Map<string, Promise<DashboardPayload>>();
 
-async function load(): Promise<DashboardData> {
-  const files = await listSpreadsheets();
-  const latest = files[0];
-  if (!latest) {
+async function load(spreadsheetId?: string): Promise<DashboardPayload> {
+  let file = spreadsheetId ? await getFile(spreadsheetId) : (await listSpreadsheets())[0];
+  if (!file) {
     throw new Error("Nenhuma planilha Google Sheets encontrada na pasta 06.");
   }
-  const tabs = await fetchAllTabs(latest.id);
-  return buildDashboard(tabs, {
-    id: latest.id,
-    nome: latest.name,
-    modificadoEm: latest.modifiedTime,
-    url: `https://docs.google.com/spreadsheets/d/${latest.id}/edit`,
-  });
+  const tabs = await fetchAllTabs(file.id);
+  return {
+    arquivo: {
+      id: file.id,
+      nome: file.name,
+      modificadoEm: file.modifiedTime,
+      url: `https://docs.google.com/spreadsheets/d/${file.id}/edit`,
+    },
+    atualizadoEm: new Date().toISOString(),
+    registros: normalizeRows(tabs),
+  };
 }
 
-export async function getDashboard(force = false): Promise<DashboardData> {
-  if (!force && cache && Date.now() - cache.at < TTL_MS) return cache.data;
-  if (!force && inflight) return inflight;
+export async function getDashboard(force = false, spreadsheetId?: string): Promise<DashboardPayload> {
+  const key = spreadsheetId ?? "__latest__";
+  const hit = cache.get(key);
+  if (!force && hit && Date.now() - hit.at < TTL_MS) return hit.data;
+  const pending = inflight.get(key);
+  if (!force && pending) return pending;
 
-  inflight = load()
+  const promise = load(spreadsheetId)
     .then((data) => {
-      cache = { at: Date.now(), data };
+      cache.set(key, { at: Date.now(), data });
       return data;
     })
     .finally(() => {
-      inflight = null;
+      inflight.delete(key);
     });
 
-  return inflight;
+  inflight.set(key, promise);
+  return promise;
 }
