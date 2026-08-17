@@ -1,9 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 
 export const getDashboardData = createServerFn({ method: "GET" })
-  .inputValidator((data: { force?: boolean; spreadsheetId?: string } | undefined) => ({
+  .inputValidator((data: { force?: boolean; spreadsheetId?: string | undefined } | undefined) => ({
     force: !!data?.force,
-    spreadsheetId: data?.spreadsheetId || undefined,
+    spreadsheetId: (data?.spreadsheetId || undefined) as string | undefined,
   }))
   .handler(async ({ data }) => {
     const { getDashboard } = await import("./estoque-cache.server");
