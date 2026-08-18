@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 
 import { getDashboardData } from "@/lib/estoque.functions";
+import satusLogo from "@/assets/satus-logo.png.asset.json";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { MultiFilter } from "@/components/dashboard/MultiFilter";
@@ -162,17 +163,24 @@ function Dashboard() {
         style={{ backgroundImage: "var(--gradient-hero)" }}
       >
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
-              Controle geral de estoque
-            </p>
-            <h1 className="mt-1 font-display text-4xl tracking-wide text-foreground md:text-5xl">
-              Painel F-ARM-BRA-007
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              Produto acabado e big bags — clique nos gráficos para filtrar e use o painel de
-              conexão para trocar a planilha ou a conta Google.
-            </p>
+          <div className="flex items-center gap-5">
+            <img
+              src={satusLogo.url}
+              alt="Satus — qualidade & confiança"
+              className="hidden h-16 w-auto rounded-lg bg-card/80 p-1 shadow-[var(--shadow-card)] sm:block"
+            />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-primary">
+                Satus · Controle geral de estoque
+              </p>
+              <h1 className="mt-1 font-display text-4xl tracking-wide text-foreground md:text-5xl">
+                Painel F-ARM-BRA-007
+              </h1>
+              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                Produto acabado e big bags — clique nos gráficos para filtrar e use o painel de
+                conexão para trocar a planilha ou a conta Google.
+              </p>
+            </div>
           </div>
           <div className="flex flex-col items-start gap-2 md:items-end">
             <div className="flex gap-2">
