@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 
 import { getDashboardData } from "@/lib/estoque.functions";
+import satusLogo from "@/assets/satus-logo.png.asset.json";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { MultiFilter } from "@/components/dashboard/MultiFilter";
