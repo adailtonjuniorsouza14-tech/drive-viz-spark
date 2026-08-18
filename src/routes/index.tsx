@@ -419,25 +419,25 @@ function Dashboard() {
                 </ResponsiveContainer>
               </ChartCard>
 
-              <ChartCard title="Estoque por espécie" subtitle="Clique em uma fatia para filtrar">
+              <ChartCard title="Estoque por cliente" subtitle="Clique em uma fatia para filtrar">
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={view.porEspecie}
+                      data={view.porCliente}
                       dataKey="value"
                       nameKey="name"
                       innerRadius={60}
                       outerRadius={100}
                       paddingAngle={2}
-                      onClick={(d: any) => d?.name && toggleValor("especies", d.name)}
+                      onClick={(d: any) => d?.name && toggleValor("clientes", d.name)}
                       className="cursor-pointer"
                     >
-                      {view.porEspecie.map((d, i) => (
+                      {view.porCliente.map((d, i) => (
                         <Cell
                           key={i}
                           fill={CHART_COLORS[i % CHART_COLORS.length]}
                           opacity={
-                            filtros.especies.length && !filtros.especies.includes(d.name) ? 0.35 : 1
+                            filtros.clientes.length && !filtros.clientes.includes(d.name) ? 0.35 : 1
                           }
                         />
                       ))}
