@@ -40,7 +40,7 @@ import { ConnectionPanel } from "@/components/dashboard/ConnectionPanel";
 import { aplicarFiltros, construirView, opcoes } from "@/lib/estoque-view";
 import { FILTROS_VAZIOS, type Filtros } from "@/lib/estoque-types";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
       { title: "Painel de Estoque F-ARM-BRA-007 | Controle Geral" },
