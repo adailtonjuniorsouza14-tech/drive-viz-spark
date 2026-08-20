@@ -1,30 +1,47 @@
-const GATEWAY = "https://connector-gateway.lovable.dev";
+import { callAsAppUser } from "@/integrations/lovable/appUserConnector";
+import { GATEWAY, resolveGoogleAuth, type GoogleAuth } from "./google-auth.server";
 
 const ROOT_FOLDER_ID = "1oXe5JOz5Li9t0VklCA_hKu-BBhVhbZP8"; // "06 - F-ARM-BRA-007 - CONTROLE GERAL DE ESTOQUE"
 
-function headers(connectorKey: string) {
+export { resolveGoogleAuth };
+export type { GoogleAuth };
+
+function workspaceHeaders(connectorKey: string) {
   const lovable = process.env["LOVABLE_API_KEY"];
   if (!lovable) throw new Error("LOVABLE_API_KEY ausente no ambiente do servidor.");
-  if (!connectorKey) throw new Error("Chave do conector Google ausente. Reconecte o conector.");
+  if (!connectorKey) throw new Error("Nenhuma conta Google conectada. Conecte uma conta no painel.");
   return {
     Authorization: `Bearer ${lovable}`,
     "X-Connection-Api-Key": connectorKey,
   };
 }
 
-async function gatewayGet(connector: "google_drive" | "google_sheets", path: string, params: Record<string, string | string[]>) {
-  const key =
-    connector === "google_drive"
-      ? process.env["GOOGLE_DRIVE_API_KEY"]!
-      : process.env["GOOGLE_SHEETS_API_KEY"]!;
+async function gatewayGet(
+  auth: GoogleAuth,
+  connector: "google_drive" | "google_sheets",
+  path: string,
+  params: Record<string, string | string[]>,
+) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (Array.isArray(v)) v.forEach((item) => qs.append(k, item));
     else qs.append(k, v);
   }
-  const res = await fetch(`${GATEWAY}/${connector}${path}?${qs.toString()}`, {
-    headers: headers(key),
-  });
+  const res =
+    auth.mode === "appuser"
+      ? await callAsAppUser({
+          gatewayBaseUrl: GATEWAY,
+          connectionAPIKey: connector === "google_drive" ? auth.driveKey : auth.sheetsKey,
+          connectorId: connector,
+          path: `${path}?${qs.toString()}`,
+        })
+      : await fetch(`${GATEWAY}/${connector}${path}?${qs.toString()}`, {
+          headers: workspaceHeaders(
+            (connector === "google_drive"
+              ? process.env["GOOGLE_DRIVE_API_KEY"]
+              : process.env["GOOGLE_SHEETS_API_KEY"]) ?? "",
+          ),
+        });
   if (!res.ok) {
     const body = await res.text();
     console.error(`Gateway ${connector} ${path} falhou [${res.status}]: ${body}`);
@@ -36,13 +53,13 @@ async function gatewayGet(connector: "google_drive" | "google_sheets", path: str
 export type DriveFile = { id: string; name: string; mimeType: string; modifiedTime: string };
 
 /** Percorre recursivamente a pasta 06 e devolve as planilhas nativas do Google Sheets. */
-export async function listSpreadsheets(): Promise<DriveFile[]> {
+export async function listSpreadsheets(auth: GoogleAuth): Promise<DriveFile[]> {
   const found: DriveFile[] = [];
   let queue = [ROOT_FOLDER_ID];
   let depth = 0;
   while (queue.length && depth < 6) {
     const q = `(${queue.map((id) => `'${id}' in parents`).join(" or ")}) and trashed=false`;
-    const data = await gatewayGet("google_drive", "/drive/v3/files", {
+    const data = await gatewayGet(auth, "google_drive", "/drive/v3/files", {
       q,
       fields: "files(id,name,mimeType,modifiedTime)",
       pageSize: "500",
@@ -90,8 +107,8 @@ function findHeaderIndex(values: any[][]): number {
   return -1;
 }
 
-export async function fetchAllTabs(spreadsheetId: string): Promise<SheetTab[]> {
-  const meta = await gatewayGet("google_sheets", `/v4/spreadsheets/${spreadsheetId}`, {
+export async function fetchAllTabs(auth: GoogleAuth, spreadsheetId: string): Promise<SheetTab[]> {
+  const meta = await gatewayGet(auth, "google_sheets", `/v4/spreadsheets/${spreadsheetId}`, {
     fields: "sheets.properties(title,gridProperties(rowCount))",
   });
   const titles: string[] = (meta.sheets ?? [])
@@ -99,7 +116,7 @@ export async function fetchAllTabs(spreadsheetId: string): Promise<SheetTab[]> {
     .filter((t: string) => !t.startsWith("_"));
 
   const ranges = titles.map((t) => `${t}!A1:AH4000`);
-  const batch = await gatewayGet("google_sheets", `/v4/spreadsheets/${spreadsheetId}/values:batchGet`, {
+  const batch = await gatewayGet(auth, "google_sheets", `/v4/spreadsheets/${spreadsheetId}/values:batchGet`, {
     ranges,
     valueRenderOption: "UNFORMATTED_VALUE",
   });
@@ -130,14 +147,14 @@ export async function fetchAllTabs(spreadsheetId: string): Promise<SheetTab[]> {
 }
 
 /** Metadados de um arquivo específico do Drive. */
-export async function getFile(fileId: string): Promise<DriveFile> {
-  return gatewayGet("google_drive", `/drive/v3/files/${fileId}`, {
+export async function getFile(auth: GoogleAuth, fileId: string): Promise<DriveFile> {
+  return gatewayGet(auth, "google_drive", `/drive/v3/files/${fileId}`, {
     fields: "id,name,mimeType,modifiedTime",
   });
 }
 
 /** Busca planilhas Google Sheets por nome em todo o Drive conectado. */
-export async function searchSpreadsheets(query: string): Promise<DriveFile[]> {
+export async function searchSpreadsheets(auth: GoogleAuth, query: string): Promise<DriveFile[]> {
   const safe = query.replace(/'/g, "\\'");
   const q = [
     "mimeType='application/vnd.google-apps.spreadsheet'",
@@ -146,7 +163,7 @@ export async function searchSpreadsheets(query: string): Promise<DriveFile[]> {
   ]
     .filter(Boolean)
     .join(" and ");
-  const data = await gatewayGet("google_drive", "/drive/v3/files", {
+  const data = await gatewayGet(auth, "google_drive", "/drive/v3/files", {
     q,
     fields: "files(id,name,mimeType,modifiedTime)",
     pageSize: "50",
@@ -156,8 +173,8 @@ export async function searchSpreadsheets(query: string): Promise<DriveFile[]> {
 }
 
 /** Conta Google atualmente conectada ao aplicativo. */
-export async function getGoogleAccount(): Promise<{ email: string; nome: string; foto: string | null }> {
-  const data = await gatewayGet("google_drive", "/drive/v3/about", {
+export async function getGoogleAccount(auth: GoogleAuth): Promise<{ email: string; nome: string; foto: string | null }> {
+  const data = await gatewayGet(auth, "google_drive", "/drive/v3/about", {
     fields: "user(displayName,emailAddress,photoLink)",
   });
   return {

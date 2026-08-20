@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export const getDashboardData = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: { force?: boolean; spreadsheetId?: string | undefined } | undefined) => ({
     force: !!data?.force,
     spreadsheetId: (data?.spreadsheetId || undefined) as string | undefined,
@@ -11,14 +13,24 @@ export const getDashboardData = createServerFn({ method: "GET" })
   });
 
 export const buscarPlanilhas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: { query?: string } | undefined) => ({ query: (data?.query ?? "").trim() }))
   .handler(async ({ data }) => {
-    const { searchSpreadsheets, listSpreadsheets } = await import("./estoque.server");
-    const files = data.query ? await searchSpreadsheets(data.query) : await listSpreadsheets();
+    const { searchSpreadsheets, listSpreadsheets, resolveGoogleAuth } = await import(
+      "./estoque.server"
+    );
+    const auth = await resolveGoogleAuth();
+    const files = data.query
+      ? await searchSpreadsheets(auth, data.query)
+      : await listSpreadsheets(auth);
     return files.slice(0, 30);
   });
 
-export const getContaGoogle = createServerFn({ method: "GET" }).handler(async () => {
-  const { getGoogleAccount } = await import("./estoque.server");
-  return getGoogleAccount();
-});
+export const getContaGoogle = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { getGoogleAccount, resolveGoogleAuth } = await import("./estoque.server");
+    const auth = await resolveGoogleAuth();
+    const conta = await getGoogleAccount(auth);
+    return { ...conta, origem: auth.mode as "workspace" | "appuser" };
+  });
