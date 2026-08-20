@@ -1,20 +1,79 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, FileSpreadsheet, Loader2, Search, UserCircle2 } from "lucide-react";
+import {
+  CheckCircle2,
+  FileSpreadsheet,
+  Link2,
+  Loader2,
+  LogOut,
+  Search,
+  UserCircle2,
+} from "lucide-react";
 
 import { buscarPlanilhas, getContaGoogle } from "@/lib/estoque.functions";
+import {
+  ativarContaGoogle,
+  concluirConexaoGoogle,
+  desconectarContaGoogle,
+  iniciarConexaoGoogle,
+  statusConexaoGoogle,
+  type ConectorGoogle,
+} from "@/lib/googleConexao.functions";
 
 type Props = {
   planilhaAtual: string | null;
   onSelecionar: (id: string | null) => void;
 };
 
+const CONECTORES: ConectorGoogle[] = ["google_drive", "google_sheets"];
+
+function esperarConclusao(popup: Window) {
+  return new Promise<string | null>((resolve, reject) => {
+    let poll: number | undefined;
+    const limpar = () => {
+      window.removeEventListener("message", onMessage);
+      if (poll !== undefined) window.clearInterval(poll);
+    };
+    const onMessage = (event: MessageEvent) => {
+      const type = event.data?.type;
+      if (
+        event.origin !== window.location.origin ||
+        event.source !== popup ||
+        (type !== "appUserConnectorOAuthComplete" && type !== "appUserConnectorOAuthFailed")
+      )
+        return;
+      limpar();
+      if (type === "appUserConnectorOAuthComplete") {
+        resolve(typeof event.data?.code === "string" ? event.data.code : null);
+        return;
+      }
+      popup.close();
+      reject(new Error("A autorização do Google falhou."));
+    };
+    window.addEventListener("message", onMessage);
+    poll = window.setInterval(() => {
+      if (!popup.closed) return;
+      limpar();
+      reject(new Error("A janela de autorização foi fechada antes de concluir."));
+    }, 500);
+  });
+}
+
 export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
+  const queryClient = useQueryClient();
   const fetchConta = useServerFn(getContaGoogle);
   const fetchPlanilhas = useServerFn(buscarPlanilhas);
+  const fetchStatus = useServerFn(statusConexaoGoogle);
+  const iniciar = useServerFn(iniciarConexaoGoogle);
+  const concluir = useServerFn(concluirConexaoGoogle);
+  const ativar = useServerFn(ativarContaGoogle);
+  const desconectar = useServerFn(desconectarContaGoogle);
+
   const [termo, setTermo] = useState("");
   const [query, setQuery] = useState("");
+  const [etapa, setEtapa] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
   const conta = useQuery({
     queryKey: ["conta-google"],
@@ -22,11 +81,61 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
     staleTime: 30 * 60 * 1000,
   });
 
+  const status = useQuery({
+    queryKey: ["status-conexao-google"],
+    queryFn: () => fetchStatus(),
+    staleTime: 60 * 1000,
+  });
+
   const planilhas = useQuery({
     queryKey: ["planilhas", query],
     queryFn: () => fetchPlanilhas({ data: { query } }),
     staleTime: 5 * 60 * 1000,
   });
+
+  const conectar = useMutation({
+    mutationFn: async () => {
+      setErro(null);
+      for (const conector of CONECTORES) {
+        setEtapa(conector === "google_drive" ? "Autorizando Google Drive…" : "Autorizando Google Sheets…");
+        const popup = window.open("", "satus-google-oauth", "width=600,height=720");
+        if (!popup) throw new Error("Pop-up bloqueado. Libere pop-ups e tente de novo.");
+        let code: string | null;
+        try {
+          const { authorizationUrl } = await iniciar({ data: { conector } });
+          const conclusao = esperarConclusao(popup);
+          popup.location.href = authorizationUrl;
+          code = await conclusao;
+        } catch (error) {
+          popup.close();
+          throw error;
+        }
+        if (code) await concluir({ data: { code } });
+      }
+      setEtapa("Ativando conta no painel…");
+      return ativar();
+    },
+    onSuccess: async () => {
+      setEtapa(null);
+      await queryClient.invalidateQueries();
+    },
+    onError: (error) => {
+      setEtapa(null);
+      setErro((error as Error).message);
+    },
+  });
+
+  const remover = useMutation({
+    mutationFn: () => desconectar(),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries();
+    },
+    onError: (error) => setErro((error as Error).message),
+  });
+
+  const admin = status.data?.admin;
+  const contaApp = status.data?.contaApp ?? null;
+  const ocupado = conectar.isPending || remover.isPending;
 
   return (
     <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
@@ -48,10 +157,69 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
               <>
                 <p className="font-semibold text-foreground">{conta.data?.nome || "Conta Google"}</p>
                 <p className="text-muted-foreground">{conta.data?.email}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {conta.data?.origem === "appuser"
+                    ? "conectada no aplicativo"
+                    : "conector do workspace"}
+                </p>
               </>
             )}
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="text-xs text-muted-foreground">
+            {contaApp ? (
+              <p>
+                Conta oficial do painel:{" "}
+                <span className="font-semibold text-foreground">
+                  {contaApp.nome || contaApp.email}
+                </span>
+              </p>
+            ) : (
+              <p>Nenhuma conta conectada dentro do app — usando o conector padrão do workspace.</p>
+            )}
+            {!admin ? (
+              <p className="mt-1">Só administradores podem trocar a conta Google.</p>
+            ) : status.data && !status.data.clienteConfigurado ? (
+              <p className="mt-1 text-destructive">
+                O cliente OAuth do Google ainda não foi configurado neste projeto.
+              </p>
+            ) : null}
+          </div>
+          {admin ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => conectar.mutate()}
+                disabled={ocupado}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {conectar.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Link2 className="size-4" />
+                )}
+                {contaApp ? "Trocar conta Google" : "Conectar conta Google"}
+              </button>
+              {contaApp ? (
+                <button
+                  type="button"
+                  onClick={() => remover.mutate()}
+                  disabled={ocupado}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-60"
+                >
+                  <LogOut className="size-4" />
+                  Desconectar
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {etapa ? <p className="mt-2 text-xs text-accent">{etapa}</p> : null}
+        {erro ? <p className="mt-2 text-xs text-destructive">{erro}</p> : null}
       </div>
 
       <form
