@@ -44,10 +44,11 @@ export const statusConexaoGoogle = createServerFn({ method: "GET" })
       _role: "admin",
     });
     const ativa = await getActiveConnection();
-    const clienteConfigurado = CONECTORES.every((c) => !!process.env[CLIENT_ENV[c]]);
+    const conectores = CONECTORES.filter((c) => !!process.env[CLIENT_ENV[c]]);
     return {
       admin: !!isAdmin,
-      clienteConfigurado,
+      clienteConfigurado: conectores.length > 0,
+      conectores,
       contaApp: ativa
         ? { email: ativa.conta_email, nome: ativa.conta_nome, minha: ativa.user_id === context.userId }
         : null,
@@ -132,10 +133,17 @@ export const ativarContaGoogle = createServerFn({ method: "POST" })
       getConnectionKeyForUser(context.userId, "google_drive"),
       getConnectionKeyForUser(context.userId, "google_sheets"),
     ]);
-    if (!driveKey || !sheetsKey) {
-      throw new Error("Conecte o Google Drive e o Google Sheets antes de ativar a conta.");
+    if (!driveKey && !sheetsKey) {
+      throw new Error("Conecte a conta Google antes de ativá-la no painel.");
     }
-    const conta = await getGoogleAccount({ mode: "appuser", id: "novo", driveKey, sheetsKey });
+    const conta = await getGoogleAccount({
+      id: "novo",
+      mode: "appuser",
+      keys: {
+        ...(driveKey ? { google_drive: driveKey } : {}),
+        ...(sheetsKey ? { google_sheets: sheetsKey } : {}),
+      },
+    });
     await setActiveConnection(context.userId, { email: conta.email, nome: conta.nome });
     invalidateDashboardCache();
     return conta;
