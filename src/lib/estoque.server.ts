@@ -27,21 +27,21 @@ async function gatewayGet(
     if (Array.isArray(v)) v.forEach((item) => qs.append(k, item));
     else qs.append(k, v);
   }
-  const res =
-    auth.mode === "appuser"
-      ? await callAsAppUser({
-          gatewayBaseUrl: GATEWAY,
-          connectionAPIKey: connector === "google_drive" ? auth.driveKey : auth.sheetsKey,
-          connectorId: connector,
-          path: `${path}?${qs.toString()}`,
-        })
-      : await fetch(`${GATEWAY}/${connector}${path}?${qs.toString()}`, {
-          headers: workspaceHeaders(
-            (connector === "google_drive"
-              ? process.env["GOOGLE_DRIVE_API_KEY"]
-              : process.env["GOOGLE_SHEETS_API_KEY"]) ?? "",
-          ),
-        });
+  const appKey = auth.keys[connector];
+  const res = appKey
+    ? await callAsAppUser({
+        gatewayBaseUrl: GATEWAY,
+        connectionAPIKey: appKey,
+        connectorId: connector,
+        path: `${path}?${qs.toString()}`,
+      })
+    : await fetch(`${GATEWAY}/${connector}${path}?${qs.toString()}`, {
+        headers: workspaceHeaders(
+          (connector === "google_drive"
+            ? process.env["GOOGLE_DRIVE_API_KEY"]
+            : process.env["GOOGLE_SHEETS_API_KEY"]) ?? "",
+        ),
+      });
   if (!res.ok) {
     const body = await res.text();
     console.error(`Gateway ${connector} ${path} falhou [${res.status}]: ${body}`);
