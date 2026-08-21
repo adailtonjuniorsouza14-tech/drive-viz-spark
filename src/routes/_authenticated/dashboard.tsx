@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,11 +27,13 @@ import {
   PackageSearch,
   RefreshCw,
   Settings2,
+  LogOut,
   Tag,
   X,
 } from "lucide-react";
 
 import { getDashboardData } from "@/lib/estoque.functions";
+import { supabase } from "@/integrations/supabase/client";
 import satusLogo from "@/assets/satus-logo.png.asset.json";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -88,6 +90,7 @@ function fmtDateTime(iso: string) {
 
 function Dashboard() {
   const fetchData = useServerFn(getDashboardData);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [forcing, setForcing] = useState(false);
   const [painel, setPainel] = useState(false);
@@ -126,6 +129,13 @@ function Dashboard() {
     }
   };
   const busy = isFetching || forcing;
+
+  const sair = async () => {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await supabase.auth.signOut();
+    navigate({ to: "/auth", replace: true });
+  };
 
   const registros = data?.registros ?? [];
   const filtrados = useMemo(() => aplicarFiltros(registros, filtros), [registros, filtros]);
@@ -190,6 +200,13 @@ function Dashboard() {
               >
                 <Settings2 className="size-4" />
                 Conexão
+              </button>
+              <button
+                onClick={sair}
+                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              >
+                <LogOut className="size-4" />
+                Sair
               </button>
               <button
                 onClick={() => refetch()}
