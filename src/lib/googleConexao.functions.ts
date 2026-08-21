@@ -25,13 +25,22 @@ const CLIENT_ENV: Record<ConectorGoogle, string> = {
   google_sheets: "GOOGLE_SHEETS_APP_USER_CONNECTOR_CLIENT_API_KEY",
 };
 
-async function exigirAdmin(context: { supabase: any; userId: string }) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
+/** Lê o papel do próprio usuário (RLS permite apenas a própria linha). */
+async function ehAdmin(context: { supabase: any; userId: string }) {
+  const { data, error } = await context.supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", context.userId)
+    .eq("role", "admin")
+    .maybeSingle();
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Apenas administradores podem alterar a conta Google do painel.");
+  return !!data;
+}
+
+async function exigirAdmin(context: { supabase: any; userId: string }) {
+  if (!(await ehAdmin(context))) {
+    throw new Error("Apenas administradores podem alterar a conta Google do painel.");
+  }
 }
 
 /** Situação da conta Google usada pelo painel. */
@@ -39,10 +48,7 @@ export const statusConexaoGoogle = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { getActiveConnection } = await import("@/server/appUserConnections.server");
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const isAdmin = await ehAdmin(context);
     const ativa = await getActiveConnection();
     const conectores = CONECTORES.filter((c) => !!process.env[CLIENT_ENV[c]]);
     return {
