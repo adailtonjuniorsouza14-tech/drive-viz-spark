@@ -1,13 +1,14 @@
-import {
-  getActiveConnection,
-  getConnectionKeyForUser,
-} from "@/server/appUserConnections.server";
+import { getActiveConnection, getConnectionKeyForUser } from "@/server/appUserConnections.server";
 
 export const GATEWAY = "https://connector-gateway.lovable.dev";
 
-export type GoogleAuth =
-  | { mode: "workspace"; id: string }
-  | { mode: "appuser"; id: string; driveKey: string; sheetsKey: string };
+export type GoogleAuth = {
+  /** Identificador para chave de cache. */
+  id: string;
+  mode: "workspace" | "appuser";
+  /** Credencial por conector do usuário do app; ausente = usa o conector do workspace. */
+  keys: Partial<Record<"google_drive" | "google_sheets", string>>;
+};
 
 /**
  * Resolve qual credencial Google usar: a conta conectada dentro do app
@@ -21,12 +22,19 @@ export async function resolveGoogleAuth(): Promise<GoogleAuth> {
         getConnectionKeyForUser(active.user_id, "google_drive"),
         getConnectionKeyForUser(active.user_id, "google_sheets"),
       ]);
-      if (driveKey && sheetsKey) {
-        return { mode: "appuser", id: `app:${active.user_id}`, driveKey, sheetsKey };
+      if (driveKey || sheetsKey) {
+        return {
+          id: `app:${active.user_id}`,
+          mode: "appuser",
+          keys: {
+            ...(driveKey ? { google_drive: driveKey } : {}),
+            ...(sheetsKey ? { google_sheets: sheetsKey } : {}),
+          },
+        };
       }
     }
   } catch (error) {
     console.error("Falha ao resolver a conta Google ativa do app:", error);
   }
-  return { mode: "workspace", id: "workspace" };
+  return { id: "workspace", mode: "workspace", keys: {} };
 }

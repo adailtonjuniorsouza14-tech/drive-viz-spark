@@ -26,8 +26,6 @@ type Props = {
   onSelecionar: (id: string | null) => void;
 };
 
-const CONECTORES: ConectorGoogle[] = ["google_drive", "google_sheets"];
-
 function esperarConclusao(popup: Window) {
   return new Promise<string | null>((resolve, reject) => {
     let poll: number | undefined;
@@ -96,7 +94,13 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
   const conectar = useMutation({
     mutationFn: async () => {
       setErro(null);
-      for (const conector of CONECTORES) {
+      const conectores = (status.data?.conectores ?? []) as ConectorGoogle[];
+      if (conectores.length === 0) {
+        throw new Error(
+          "O cliente OAuth do Google ainda não foi configurado neste projeto. Configure o App User Connector do Google nas configurações do Lovable.",
+        );
+      }
+      for (const conector of conectores) {
         setEtapa(conector === "google_drive" ? "Autorizando Google Drive…" : "Autorizando Google Sheets…");
         const popup = window.open("", "satus-google-oauth", "width=600,height=720");
         if (!popup) throw new Error("Pop-up bloqueado. Libere pop-ups e tente de novo.");
