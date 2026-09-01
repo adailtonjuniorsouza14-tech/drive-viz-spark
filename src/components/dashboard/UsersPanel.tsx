@@ -4,12 +4,21 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 
 import { criarVisualizador, excluirUsuario, listarUsuarios } from "@/lib/usuarios.functions";
+import { statusConexaoGoogle } from "@/lib/googleConexao.functions";
 
 export function UsersPanel() {
   const queryClient = useQueryClient();
   const fetchUsuarios = useServerFn(listarUsuarios);
+  const fetchStatus = useServerFn(statusConexaoGoogle);
   const criar = useServerFn(criarVisualizador);
   const excluir = useServerFn(excluirUsuario);
+
+  const status = useQuery({
+    queryKey: ["status-conexao-google"],
+    queryFn: () => fetchStatus(),
+    staleTime: 60 * 1000,
+  });
+  const admin = !!status.data?.admin;
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -21,6 +30,7 @@ export function UsersPanel() {
     queryKey: ["usuarios-painel"],
     queryFn: () => fetchUsuarios(),
     staleTime: 60 * 1000,
+    enabled: admin,
   });
 
   const novo = useMutation({
@@ -51,6 +61,8 @@ export function UsersPanel() {
       setErro((e as Error).message);
     },
   });
+
+  if (!admin) return null;
 
   return (
     <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">

@@ -89,6 +89,7 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
     queryKey: ["planilhas", query],
     queryFn: () => fetchPlanilhas({ data: { query } }),
     staleTime: 5 * 60 * 1000,
+    enabled: !!status.data?.admin,
   });
 
   const conectar = useMutation({
@@ -226,6 +227,8 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
         {erro ? <p className="mt-2 text-xs text-destructive">{erro}</p> : null}
       </div>
 
+      {admin ? (
+      <>
       <form
         className="mt-4 flex flex-wrap gap-2"
         onSubmit={(e) => {
@@ -292,6 +295,12 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
           })
         )}
       </div>
+      </>
+      ) : (
+        <p className="mt-4 rounded-lg border border-border bg-secondary/30 px-3 py-3 text-xs text-muted-foreground">
+          Seu acesso é somente de visualização. A planilha exibida é definida pelo administrador.
+        </p>
+      )}
     </section>
   );
 }

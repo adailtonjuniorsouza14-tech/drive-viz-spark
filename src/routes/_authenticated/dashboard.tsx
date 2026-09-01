@@ -39,6 +39,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { MultiFilter } from "@/components/dashboard/MultiFilter";
 import { ConnectionPanel } from "@/components/dashboard/ConnectionPanel";
+import { UsersPanel } from "@/components/dashboard/UsersPanel";
 import { aplicarFiltros, construirView, opcoes } from "@/lib/estoque-view";
 import { FILTROS_VAZIOS, type Filtros } from "@/lib/estoque-types";
 
@@ -236,8 +237,9 @@ function Dashboard() {
 
       <div className="mx-auto max-w-[1400px] px-6">
         {painel ? (
-          <div className="mt-6">
+          <div className="mt-6 space-y-6">
             <ConnectionPanel planilhaAtual={data?.arquivo.id ?? planilhaId} onSelecionar={selecionarPlanilha} />
+            <UsersPanel />
           </div>
         ) : null}
 
