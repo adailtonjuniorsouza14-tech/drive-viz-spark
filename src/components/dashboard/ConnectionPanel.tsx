@@ -295,6 +295,12 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
           })
         )}
       </div>
+      </>
+      ) : (
+        <p className="mt-4 rounded-lg border border-border bg-secondary/30 px-3 py-3 text-xs text-muted-foreground">
+          Seu acesso é somente de visualização. A planilha exibida é definida pelo administrador.
+        </p>
+      )}
     </section>
   );
 }
