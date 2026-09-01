@@ -30,6 +30,7 @@ export function UsersPanel() {
     queryKey: ["usuarios-painel"],
     queryFn: () => fetchUsuarios(),
     staleTime: 60 * 1000,
+    enabled: admin,
   });
 
   const novo = useMutation({
