@@ -227,6 +227,8 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
         {erro ? <p className="mt-2 text-xs text-destructive">{erro}</p> : null}
       </div>
 
+      {admin ? (
+      <>
       <form
         className="mt-4 flex flex-wrap gap-2"
         onSubmit={(e) => {
