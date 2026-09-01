@@ -9,8 +9,16 @@ import { statusConexaoGoogle } from "@/lib/googleConexao.functions";
 export function UsersPanel() {
   const queryClient = useQueryClient();
   const fetchUsuarios = useServerFn(listarUsuarios);
+  const fetchStatus = useServerFn(statusConexaoGoogle);
   const criar = useServerFn(criarVisualizador);
   const excluir = useServerFn(excluirUsuario);
+
+  const status = useQuery({
+    queryKey: ["status-conexao-google"],
+    queryFn: () => fetchStatus(),
+    staleTime: 60 * 1000,
+  });
+  const admin = !!status.data?.admin;
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
