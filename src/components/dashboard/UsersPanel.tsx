@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 
 import { criarVisualizador, excluirUsuario, listarUsuarios } from "@/lib/usuarios.functions";
+import { statusConexaoGoogle } from "@/lib/googleConexao.functions";
 
 export function UsersPanel() {
   const queryClient = useQueryClient();
