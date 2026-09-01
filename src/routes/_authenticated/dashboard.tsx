@@ -39,6 +39,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { MultiFilter } from "@/components/dashboard/MultiFilter";
 import { ConnectionPanel } from "@/components/dashboard/ConnectionPanel";
+import { UsersPanel } from "@/components/dashboard/UsersPanel";
 import { aplicarFiltros, construirView, opcoes } from "@/lib/estoque-view";
 import { FILTROS_VAZIOS, type Filtros } from "@/lib/estoque-types";
 
