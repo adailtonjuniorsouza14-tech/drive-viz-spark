@@ -62,6 +62,8 @@ export function UsersPanel() {
     },
   });
 
+  if (!admin) return null;
+
   return (
     <section className="rounded-xl border border-border bg-card p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-2">
