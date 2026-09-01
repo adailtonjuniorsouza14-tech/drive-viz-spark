@@ -89,6 +89,7 @@ export function ConnectionPanel({ planilhaAtual, onSelecionar }: Props) {
     queryKey: ["planilhas", query],
     queryFn: () => fetchPlanilhas({ data: { query } }),
     staleTime: 5 * 60 * 1000,
+    enabled: !!status.data?.admin,
   });
 
   const conectar = useMutation({
